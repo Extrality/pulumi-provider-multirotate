@@ -1,0 +1,32 @@
+{
+    "name": "@extrality/pulumi-multirotate",
+    "version": "0.0.1",
+    "description": "A Pulumi provider that rotates a cursor over a fixed number of timestamps on a time basis, for periodic credential rotation.",
+    "keywords": [
+        "pulumi",
+        "multirotate",
+        "rotation",
+        "credentials"
+    ],
+    "homepage": "https://github.com/Extrality/pulumi-provider-multirotate",
+    "repository": "https://github.com/Extrality/pulumi-provider-multirotate",
+    "license": "MIT",
+    "scripts": {
+        "build": "tsc"
+    },
+    "dependencies": {
+        "@pulumi/pulumi": "^3.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20",
+        "typescript": "^4.7.0"
+    },
+    "pulumi": {
+        "resource": true,
+        "name": "multirotate",
+        "version": "0.0.1",
+        "server": "github://api.github.com/Extrality/pulumi-provider-multirotate"
+    },
+    "main": "index.js",
+    "types": "index.d.ts"
+}
