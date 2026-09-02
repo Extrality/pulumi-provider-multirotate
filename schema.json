@@ -1,0 +1,79 @@
+{
+  "name": "multirotate",
+  "version": "0.0.1",
+  "displayName": "MultiRotate",
+  "description": "Provider that rotates a cursor over a fixed number of timestamps on a time basis, for periodic credential rotation.",
+  "keywords": ["pulumi", "multirotate", "rotation", "credentials"],
+  "homepage": "https://github.com/Extrality/pulumi-provider-multirotate",
+  "repository": "https://github.com/Extrality/pulumi-provider-multirotate",
+  "publisher": "Extrality",
+  "license": "MIT",
+  "pluginDownloadURL": "github://api.github.com/Extrality/pulumi-provider-multirotate",
+  "meta": {
+    "moduleFormat": "(.*)"
+  },
+  "language": {
+    "nodejs": {
+      "packageName": "@extrality/pulumi-multirotate",
+      "packageDescription": "A Pulumi provider that rotates a cursor over a fixed number of timestamps on a time basis, for periodic credential rotation.",
+      "respectSchemaVersion": true,
+      "dependencies": {
+        "@pulumi/pulumi": "^3.0.0"
+      }
+    },
+    "python": {
+      "packageName": "pulumi_multirotate",
+      "respectSchemaVersion": true
+    },
+    "go": {
+      "importBasePath": "github.com/Extrality/pulumi-provider-multirotate/sdk/go/multirotate",
+      "respectSchemaVersion": true
+    }
+  },
+  "config": {},
+  "provider": {},
+  "resources": {
+    "multirotate:index:MultiRotate": {
+      "isComponent": false,
+      "description": "Rotates credentials. It maintains `timestamps` and an `index` into them; when the timestamp at `index` is older than `rotationPeriodDays`, the cursor advances to the next slot and that slot is re-stamped with the current time.",
+      "inputProperties": {
+        "count": {
+          "type": "number",
+          "default": 1,
+          "description": "Number of timestamps in the rotation window."
+        },
+        "rotationPeriodDays": {
+          "type": "number",
+          "default": 60,
+          "description": "Number of days a timestamp stays valid before it is rotated."
+        }
+      },
+      "properties": {
+        "count": {
+          "type": "number",
+          "description": "Number of timestamps in the rotation window."
+        },
+        "rotationPeriodDays": {
+          "type": "number",
+          "description": "Number of days a timestamp stays valid before it is rotated."
+        },
+        "index": {
+          "type": "number",
+          "description": "Index of the last rotated timestamp."
+        },
+        "timestamps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The rotation window: `count` ISO-8601 timestamps."
+        },
+        "currentTimestamp": {
+          "type": "string",
+          "description": "The timestamp at `timestamps[index]`."
+        }
+      },
+      "required": ["count", "rotationPeriodDays", "index", "timestamps", "currentTimestamp"]
+    }
+  }
+}

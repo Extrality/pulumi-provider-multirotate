@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: pulumi-resource-multirotate
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: provider
+    main: ./cmd/pulumi-resource-multirotate
+    binary: pulumi-resource-multirotate
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      # The plugin self-reports this version, and it is injected into the
+      # schema it serves, so generated SDKs pin the matching plugin.
+      - -s -w -X github.com/Extrality/pulumi-provider-multirotate.version={{ .Version }}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  # Pulumi's `github://` plugin downloader resolves release assets named
+  # `<plugin>-v<version>-<os>-<arch>.tar.gz` containing the bare binary.
+  - id: provider
+    ids:
+      - provider
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}-v{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    wrap_in_directory: false
+    files:
+      - none*
+
+checksum:
+  name_template: "{{ .ProjectName }}-v{{ .Version }}-checksums.txt"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  prerelease: auto
+  mode: append

@@ -1,0 +1,7 @@
+# Go build output
+/bin/
+/dist/
+
+# Node SDK build scratch
+/sdk/nodejs/node_modules/
+/sdk/nodejs/package-lock.json
