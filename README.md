@@ -96,52 +96,17 @@ make install_plugin # install the local build into the Pulumi plugin cache
 `make install_plugin` followed by pointing a test program at `sdk/nodejs` via
 `pnpm add ./path/to/sdk/nodejs` is the quickest way to try a change end to end.
 
-### How versioning works
-
-There is a single source of truth per commit: `VERSION`, which defaults to the
-version already stamped into `sdk/nodejs/package.json`.
-
-1. `-ldflags "-X github.com/Extrality/pulumi-provider-multirotate.version=X.Y.Z"`
-   sets the `version` variable in `provider.go`.
-2. `GetPluginInfo` reports it, and `GetSchema` rewrites the `version` field of
-   the embedded `schema.json` to match before serving it.
-3. `pulumi package gen-sdk` reads that schema, so `sdk/nodejs/package.json` and
-   its embedded `pulumi` plugin descriptor are stamped with the same version.
-
-So the npm package always asks for exactly the plugin build it was generated
-from. `schema.json`'s checked-in `"version"` is a placeholder and never needs
-editing.
-
-`make sdk_check` closes the loop: it regenerates the SDK at the version
-`sdk/nodejs/package.json` currently declares and fails if the result differs
-from what is committed. CI runs it on every PR, so `main` is always releasable
-and a release only has to restamp the version. If it fails, run `make sdk` and
-commit the result.
-
 ### Cutting a release
-
-Releasing is two steps, because `main` is protected and nothing can push to it
-directly — the built-in `GITHUB_TOKEN` cannot be granted a ruleset bypass.
 
 1. Run the **release-prepare** workflow from the Actions tab with a version like
    `0.1.0`. It runs the tests, regenerates `sdk/nodejs` pinned to that version,
    and opens a `release/v0.1.0` pull request.
-2. In that PR, click **Approve workflows to run** in the merge box. The PR was
-   opened by `github-actions[bot]` using `GITHUB_TOKEN`, so GitHub holds its
-   checks in an approval-required state until a human releases them.
+2. In that PR, click **Approve workflows to run** in the merge box.
 3. Review and merge it. The diff should be two lines in
    `sdk/nodejs/package.json` — nothing else in the generated SDK carries the
    version.
 4. Merging triggers **release-publish**, which tags the merge commit `v0.1.0`,
-   builds the provider for darwin/linux (amd64 + arm64) and windows/amd64, and
-   attaches the archives to the GitHub release.
-
-The SDK must land on `main` before the tag exists, otherwise
-`#v0.1.0&path:/sdk/nodejs` would resolve to the previous SDK — hence the tag is
-placed on the merge commit rather than pushed up front.
-
-Prereleases need no flag: `.goreleaser.yml` sets `prerelease: auto`, so a
-version with a suffix (`0.2.0-rc.1`) is marked as a prerelease automatically.
+   builds the provider, and attaches the archives to the GitHub release.
 
 The Pulumi CLI version is pinned in both workflows and in `ci.yml`, because
 `sdk_check` compares generated output byte for byte. Bumping it means
