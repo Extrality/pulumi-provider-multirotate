@@ -1,0 +1,92 @@
+name: release-publish
+
+# Second half of the release; see release-prepare.yml for the whole picture.
+#
+# release-prepare.yml opened a `release/vX.Y.Z` PR. Merging it lands the
+# version-stamped SDK on main; this workflow then tags that merge commit and
+# uploads the provider binaries.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Only release PRs. Anything else merging into main is ignored.
+    if: >-
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Derive the version from the branch name
+        id: version
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          VERSION="${HEAD_REF#release/v}"
+          if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::branch '${HEAD_REF}' does not encode a semver version"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        with:
+          # Tag the commit that actually landed on main, not main's current tip:
+          # another PR may have merged in between.
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Verify the merged tree matches the version being tagged
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # The branch name is the only thing that decides what gets tagged, so
+          # cross-check it against the tree. This is also what catches a
+          # hand-edited version that sdk_check cannot see, since sdk_check takes
+          # package.json's version as its input.
+          SDK_VERSION=$(jq -r .version sdk/nodejs/package.json)
+          PLUGIN_VERSION=$(jq -r .pulumi.version sdk/nodejs/package.json)
+
+          for got in "${SDK_VERSION}" "${PLUGIN_VERSION}"; do
+            if [ "${got}" != "${VERSION}" ]; then
+              echo "::error::sdk/nodejs/package.json declares ${got} but the release branch asks to tag v${VERSION}"
+              exit 1
+            fi
+          done
+
+          if git rev-parse "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "::error::tag v${VERSION} already exists"
+            exit 1
+          fi
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Tag the merge commit
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -m "v${VERSION}"
+          git push origin "v${VERSION}"
+
+      - name: Publish provider binaries
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: v${{ steps.version.outputs.version }}

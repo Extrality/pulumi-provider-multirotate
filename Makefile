@@ -3,11 +3,24 @@ PACK         := multirotate
 PROVIDER     := pulumi-resource-$(PACK)
 MODULE       := github.com/Extrality/$(PROJECT)
 
+# Bootstrap value, used only if the SDK has never been generated.
+DEV_VERSION  := 0.0.1
+
+# The version stamped into the SDK that is currently committed. Read at parse
+# time (`:=`) because sdk_nodejs deletes the directory before regenerating.
+# Deriving the expected version from the tree itself -- rather than from
+# `git describe` -- is what makes `sdk_check` reproducible: it needs no tags
+# fetched, and it still holds on the release PR, where the version has been
+# bumped but the tag does not exist yet.
+SDK_VERSION  := $(shell node -p "require('./sdk/nodejs/package.json').version" 2>/dev/null || echo $(DEV_VERSION))
+
 # VERSION drives the plugin version, the schema version and the npm package
-# version. Derived from the current git tag, falling back to 0.0.1 for dev
-# builds. Override with `make VERSION=1.2.3 <target>`.
-VERSION      ?= $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)
-VERSION      := $(if $(VERSION),$(VERSION),0.0.1)
+# version. It deliberately does *not* derive from `git describe`: that made
+# `make sdk` produce different bytes depending on which tags you had fetched.
+# Defaulting to SDK_VERSION keeps a plain `make sdk` idempotent on a clean tree,
+# and keeps a locally built plugin version-matched with the local SDK.
+# The release workflow passes it explicitly.
+VERSION      ?= $(SDK_VERSION)
 
 LDFLAGS      := -X $(MODULE).version=$(VERSION)
 WORKING_DIR  := $(shell pwd)
@@ -53,6 +66,16 @@ sdk_nodejs: build ## Generate + compile the Node.js SDK into ./sdk/nodejs
 
 .PHONY: sdk
 sdk: sdk_nodejs ## Generate all SDKs
+
+.PHONY: sdk_check
+sdk_check: ## Fail if the committed SDK is not what the schema generates (CI gate)
+	@$(MAKE) --no-print-directory sdk VERSION=$(SDK_VERSION)
+	@git add --intent-to-add -A sdk
+	@git diff --exit-code -- sdk || { \
+		printf '\nsdk/ is out of date at version $(SDK_VERSION).\n'; \
+		printf 'Run `make sdk` and commit the result.\n'; \
+		exit 1; \
+	}
 
 .PHONY: install_plugin
 install_plugin: build ## Install the built plugin into the local Pulumi plugin cache

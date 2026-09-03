@@ -33,15 +33,16 @@ jobs:
         with:
           node-version: "20"
       - uses: pulumi/actions@v6
-      # Regenerating the SDK is the real check that the schema is valid and
-      # that the generated TypeScript compiles.
-      - run: make sdk
-      - name: Report SDK drift
-        run: |
-          if ! git diff --quiet -- sdk/; then
-            echo "::notice::sdk/ differs from the committed SDK (expected between releases)."
-            git diff --stat -- sdk/
-          fi
+        with:
+          # Pinned deliberately: sdk_check compares the generated SDK byte for
+          # byte, so a new Pulumi codegen release would fail otherwise unrelated
+          # PRs. Bumping this means regenerating sdk/ in the same PR.
+          pulumi-version: 3.259.0
+      # Regenerating the SDK is the real check that the schema is valid and that
+      # the generated TypeScript compiles. Comparing it against the committed
+      # tree additionally guarantees main is always releasable: the release PR
+      # then only has to restamp the version.
+      - run: make sdk_check
 
   goreleaser-check:
     runs-on: ubuntu-latest
